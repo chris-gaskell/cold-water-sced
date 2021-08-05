@@ -1,0 +1,253 @@
+---
+title: "Cold Water Swimming"
+author: "Chris Gaskell"
+date: "29/07/2021"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+  pdf_document: default
+header-includes: \usepackage{lscape}
+---
+
+```{r setup, include=T, echo=FALSE, message=FALSE}
+# Global options across code chunks
+knitr::opts_chunk$set(echo = F, fig.width = 9, fig.height = 8)
+
+# Libraries
+library(tidyverse)
+library(scan)
+library(SingleCaseES)
+library(scales)
+library(knitr)
+library(kableExtra)
+```
+
+```{r data, include=F, results='hide'}
+# Import the data as a csv file from your working directory. 
+long.dat <- read.csv("CWS.csv") %>% janitor::clean_names() # Assuming that your data is stored in long format.
+
+# Separate the nomothetic data
+phq <- long.dat %>% filter(case == "PHQ9")
+
+# Isolate the three idiographic measures
+long.dat <- long.dat %>% filter(case == "SadHappy" | case == "AnxiousCalm" | case == "BoredExcited")
+
+# rename the idiographic variables
+long.dat <- long.dat %>% mutate(
+    case = dplyr::recode(case,  "SadHappy" = "Happy",
+                                "AnxiousCalm" = "Anxious",
+                                "BoredExcited" = "Excited"))
+
+wide.dat <- long.dat %>% spread(case, values) # Just incase we need to work in wide format.
+
+# Make a Single Case Data Frame (special type of data format for working with data in the 'scan' package).
+scdf <- readSC("CWS.csv")
+scdf <- scdf[c(1:3)]
+```
+
+## About
+
+This is an R markdown file to analyse the idiographic data collected from a SCED investigating the effectiveness of behavioural therapy (cold water swimming and access to green spaces) for major depressive disorder. The design for the study was an A-B-A-C-FU or Baseline, Intervention, Withdrawal, Intervention Follow-Up. The two intervention phases differed in that the former include cold water swimming only, while the latter included both cold water swimming and also access to green spaces. 
+
+The three idiographic variables (dependent variables) measures included states of happiness (or conversely sad); excitement (or boredom); and finally anxiousness (or calmness). Each of the measures were rated out of 100 with 100 being optimal scoring. If scores went up across treatment then this would demonstrate an improvement, whereas scores that drop across treatment would demonstrated a worsening (i.e. deterioration).
+
+An overview of the data structure is as follows: 
+```{r inspect, include=T}
+# Take a look at the data
+distinct(long.dat, case, phase, .keep_all = T)
+```
+
+```{r overview, include=F, results='hide'}
+summary(scdf)
+```
+
+\newpage
+
+# Descriptives
+
+```{r describe, include=T, warning=F, message=F}
+desc <- describeSC(scdf)
+desc <- desc$descriptives
+desc <- desc %>% select(starts_with(c("m.","sd", "tren")))
+desc <- round(desc, 2)
+
+desc <- rename_with(desc, ~ tolower(gsub("m.", "mean_", .x, fixed = TRUE)))
+desc <- rename_with(desc, ~ tolower(gsub("sd.", "sd_", .x, fixed = TRUE)))
+desc <- rename_with(desc, ~ tolower(gsub("trend.", "trend_", .x, fixed = TRUE)))
+
+desc <- desc %>% relocate((ends_with(c("a","b","a2","c","fu"))))
+desc <- as.data.frame(desc)
+
+knitr::kable(desc) %>% kable_styling("striped")
+
+#sum(desc$descriptives$mis.A, desc$descriptives$mis.B, desc$descriptives$mis.A2,
+#    desc$descriptives$mis.C, desc$descriptives$mis.FU)
+```
+
+Across the fives phases of the three idiographic measures there were no missing values.
+The data-set was therefore complete with no imputation needed.
+The means, standard deviations (SD), and trends are reported in the table.
+
+
+
+\newpage
+
+# Baseline analyses
+
+```{r tau, include=T, warning=F}
+Tau <- list(
+          A1vsB1 = tau_u(scdf, phases = c(1,2)),
+          A1vsA2 = tau_u(scdf, phases = c(1,3))
+          #A1vsA2 = tau_u(scdf, phases = c(1,3)),
+          #A1vsA2 = tau_u(scdf, phases = c(1,3)),
+                         )
+          
+#print(Tau, complete = T)
+
+#round(Tau$table$SadHappy$p[2], 3)
+#format.pval(Tau$table$SadHappy$p[2], digits = 2, eps = .001)
+
+# round(Tau$A1vsB1$table$SadHappy$Tau[2],2)
+```
+
+The trends for the baseline period can be seen visually in the plots and statistically from the table.
+When using Kendall's Tau to measure the trend of the baseline periods there was a significant trend for
+happiness (t = `r round(Tau$A1vsB1$table$SadHappy$Tau[2],2)`, p = `r format.pval(Tau$A1vsB1$table$SadHappy$p[2], digits = 2, eps = .001)`) but not for
+anxiousness (t = `r round(Tau$A1vsB1$table$AnxiousCalm$Tau[2], 2)`, p = `r format.pval(Tau$A1vsB1$table$AnxiousCalm$p[2], digits = 2, eps = .001)`) or
+boredom (t = `r round(Tau$A1vsB1$table$BoredExcited$Tau[2], 2)`, p = `r format.pval(Tau$A1vsB1$table$BoredExcited$p[2], digits = 2, eps = .001)`).
+As the trend for happiness showed a worsening, and the remaining variables did not show a significant trend, there was no need to apply statistical adjustment (i.e. for baseline trend) within the following analyses. 
+
+The baseline and withdrawal phases are visually comparable. In terms of trends shown within the withdrawal period there was no significant trend shown for happiness (t = `r round(Tau$A1vsA2$table$SadHappy$Tau[3],2)`, p = `r format.pval(Tau$A1vsA2$table$SadHappy$p[3], digits = 2, eps = .001)`) or anxiousness (t = `r round(Tau$A1vsA2$table$AnxiousCalm$Tau[3], 2)`, p = `r format.pval(Tau$A1vsA2$table$AnxiousCalm$p[3], digits = 2, eps = .001)`)
+however there was a significant trend for boredom (t = `r round(Tau$A1vsA2$table$BoredExcited$Tau[3], 2)`, p = `r format.pval(Tau$A1vsA2$table$BoredExcited$p[3], digits = 2, eps = .001)`). This indicates that during the withdrawal period there was some level of improvement across the phase.
+
+In terms of level difference, Mann-whittney U tests were computed to determine is there was a statistically significant difference between the baseline and the withdrawal period. For happiness, there was a greater level of happiness shown in the withdrawal phase than the baseline phase. There was no significant difference for the Mann-whittney test for the boredom and anxiousness idiographics. Taken into account, there was small, limited evidence (statistically and visually) for differences between the baseline and withdrawal phases. 
+
+
+```{r batchcalc, include=T, warning=F}
+AvsB <- batch_calc_ES(long.dat, grouping = "case", condition = "phase", outcome = "values",
+         ES = c("PND", "PEM", "NAP"), improvement = "increase",
+         format = "wide", confidence = NULL, baseline_phase = "A", intervention_phase = "B")
+AvsB <-  AvsB %>% as.data.frame(AvsB) %>% 
+          mutate(across(c(2:4), percent, .01)) %>% 
+          mutate(NAP_SE = round(NAP_SE, 2)) %>% 
+          rename(PND = PND_Est, PEM = PEM_Est, NAP = NAP_Est)
+
+AvsA2 = batch_calc_ES(long.dat, grouping = "case", condition = "phase", outcome = "values",
+         ES = c("PND", "PEM", "NAP"), improvement = "increase",
+         format = "wide", confidence = NULL, baseline_phase = "A", intervention_phase = "C")
+AvsA2 <-  AvsA2 %>% as.data.frame(AvsA2) %>% 
+          mutate(across(c(2:4), percent, .01)) %>% 
+          mutate(NAP_SE = round(NAP_SE, 2)) %>% 
+          rename(PND = PND_Est, PEM = PEM_Est, NAP = NAP_Est)
+
+BvsC = batch_calc_ES(long.dat, grouping = "case", condition = "phase", outcome = "values",
+         ES = c("PND", "PEM", "NAP"), improvement = "increase",
+         format = "wide", confidence = NULL, baseline_phase = "B", intervention_phase = "C")
+BvsC <-  BvsC %>% as.data.frame(BvsC) %>% 
+          mutate(across(c(2:4), percent, .01)) %>% 
+          mutate(NAP_SE = round(NAP_SE, 2)) %>% 
+          rename(PND = PND_Est, PEM = PEM_Est, NAP = NAP_Est)
+ 
+CvsFU = batch_calc_ES(long.dat, grouping = "case", condition = "phase", outcome = "values",
+        ES = c("PND", "PEM", "NAP"), improvement = "decrease",
+        format = "wide", confidence = NULL, baseline_phase = "C", intervention_phase = "FU")
+CvsFU <-  CvsFU %>% as.data.frame(CvsFU) %>% 
+          mutate(across(c(2:4), percent, .01)) %>% 
+          mutate(NAP_SE = round(NAP_SE, 2)) %>% 
+          rename(PND = PND_Est, PEM = PEM_Est, NAP = NAP_Est)                 
+ 
+
+nonover <- list(AvsB = AvsB, AvsA2 = AvsA2, BvsC = BvsC, CvsFU = CvsFU
+                )
+
+#label_percent()(nonover$AvsB)
+
+#nonover$CvsFU %>% 
+#  mutate(Test=Sepal.Length/45,Test=scales::percent(Test)) #
+#
+#scales::percent(nonover$AvsB[,-1])
+
+```
+
+
+```{r}
+kable(AvsA2) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+kable(AvsB) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+kable(BvsC) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+kable(CvsFU) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+
+A vs. B - Effect of the initial intervention.
+B vs. A     OR    A vs A2 - Durability of the initial intervention.
+B vs. C     OR    A2 vs C - either can be used to determine the differential treatment effectiveness.
+C vs FU     OR    A vs. C - Durability second intervention.
+
+\newpage
+
+```{r apa-plot, include=T}
+plotSC(scdf,
+       phase.names = c('Baseline', 'Cold-water', 'Withdrawal', 'Green spaces', 'Follow-up'),
+       ylab= "1-100 (100 = Happy)", # label for the y-axis
+       xlab="Measurement days across the study", # label for the x-axis
+       xinc = 10, # The increment number of the x axis
+     lines=c('trend',lty='dotted',lwd=5,col='red'), # Lines to impose and styling.
+     style=list(fill=TRUE,col.fill="white",pch=20)) # Making it look pretty.
+```
+
+```{r multi-y-plot-simple, include=F}
+# Basic example
+Plot <- ggplot(long.dat, # replace 'long.dat' with your long format data frame.
+          aes(x = mt, y = values)) + # replace x + y with your x and y variables.
+          geom_line(aes(color = case, # replace case with name for ideographic measure column.
+                )) 
+```
+
+```{r multi-y-plot-apa, include=F}
+# Adjust to be more like APA
+Plot <- Plot +
+          scale_color_manual(values = c("red", "steelblue", "black"))+
+          jtools::theme_apa()+
+          ylab("1 to 100 Rating Scale")+
+          xlab("Measurement days across the study")+
+          ggtitle("Time series graph for happysad and boredexcited ")
+```
+
+
+```{r multiyplotphases, include=T}
+# Add vertical lines and text to distinguish between phases.
+Plot <- Plot +
+  geom_vline(xintercept = 28, color = "black", size=.25)+
+  geom_vline(xintercept = 70, color = "black", size=.25)+
+  geom_vline(xintercept = 98, color = "black", size=.25)+
+  geom_vline(xintercept = 140, color = "black", size=.25) +
+     annotate("text", x = .5*(0+25), y = 100, label = "Baseline", size=4) +
+     annotate("text", x = .5*(25+70), y = 100, label = "CWS", size=4) +
+     annotate("text", x = .5*(70+98), y = 100, label = "Withdraw", size=4) +
+     annotate("text", x = .5*(98+140), y = 100, label = "CWS2", size=4) +
+     annotate("text", x = .5*(140+200), y = 100, label = "Followup", size=4)
+```
+
+\newpage
+\newpage
+
+\begin{landscape}
+
+```{r}
+Plot
+```
+
+\end{landscape}
+
+
+
+
+
