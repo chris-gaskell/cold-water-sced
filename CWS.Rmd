@@ -62,8 +62,6 @@ An overview of the data structure is as follows:
 #summary(scdf)
 ```
 
-\newpage
-
 # Descriptives
 
 ```{r describe, include=T, warning=F, message=F}
@@ -135,7 +133,7 @@ AvsB <-  AvsB %>% as.data.frame(AvsB) %>%
 
 AvsA2 = batch_calc_ES(long.dat, grouping = "case", condition = "phase", outcome = "values",
          ES = c("PND", "PEM", "NAP"), improvement = "increase",
-         format = "wide", confidence = NULL, baseline_phase = "A", intervention_phase = "C")
+         format = "wide", confidence = NULL, baseline_phase = "A", intervention_phase = "A2")
 AvsA2 <-  AvsA2 %>% as.data.frame(AvsA2) %>% 
           mutate(across(c(2:4), percent, .01)) %>% 
           mutate(NAP_SE = round(NAP_SE, 2)) %>% 
@@ -171,18 +169,28 @@ nonover <- list(AvsB = AvsB, AvsA2 = AvsA2, BvsC = BvsC, CvsFU = CvsFU
 ```
 
 
-```{r}
+```{r, A-vs-A2}
 kable(AvsA2) %>%
-  kable_classic(full_width = F, html_font = "Cambria")
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  footnote(general = "A vs. A2") 
+```
 
+```{r, A-vs-B}
 kable(AvsB) %>%
-  kable_classic(full_width = F, html_font = "Cambria")
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  footnote(general = "A vs. B") 
+```
 
+```{r, B-vs-C}
 kable(BvsC) %>%
-  kable_classic(full_width = F, html_font = "Cambria")
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  footnote(general = "B vs. C") 
+```
 
+```{r, C-vs-FU}
 kable(CvsFU) %>%
-  kable_classic(full_width = F, html_font = "Cambria")
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  footnote(general = "C vs. FU") 
 ```
 
 
@@ -238,7 +246,7 @@ Plot <- Plot +
 
 
 
-```{r final plot, include=T}
+```{r final plot, include=T, fig.height=6}
 Plot
 ```
 
